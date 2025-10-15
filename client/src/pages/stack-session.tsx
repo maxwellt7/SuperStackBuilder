@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Heart, Lightbulb, Sparkles, Flame, Send, CheckCircle2, Loader2 } from "lucide-react";
+import { Heart, Lightbulb, Sparkles, Flame, Send, CheckCircle2, Loader2, Download } from "lucide-react";
 import type { StackSession, StackMessage } from "@shared/schema";
 
 export default function StackSessionPage() {
@@ -93,6 +93,39 @@ export default function StackSessionPage() {
     },
   });
 
+  const handleExport = async () => {
+    try {
+      const response = await fetch(`/api/stacks/${sessionId}/export`, {
+        credentials: "include",
+      });
+      
+      if (!response.ok) {
+        throw new Error("Failed to export transcript");
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${session?.title || 'stack'}-transcript.txt`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast({
+        title: "Export Successful",
+        description: "Your Stack transcript has been downloaded.",
+      });
+    } catch (error) {
+      toast({
+        title: "Export Failed",
+        description: "Could not export the transcript. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -162,16 +195,29 @@ export default function StackSessionPage() {
               </p>
             </div>
           </div>
-          {isCompleted ? (
-            <Badge variant="secondary" className="gap-1" data-testid="badge-completed">
-              <CheckCircle2 className="h-3 w-3" />
-              Completed
-            </Badge>
-          ) : (
-            <Badge variant="secondary" data-testid="badge-progress">
-              Question {currentQuestion} / {session.currentQuestionIndex + 1}
-            </Badge>
-          )}
+          <div className="flex items-center gap-3">
+            {messages.length > 0 && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleExport}
+                data-testid="button-export"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Export
+              </Button>
+            )}
+            {isCompleted ? (
+              <Badge variant="secondary" className="gap-1" data-testid="badge-completed">
+                <CheckCircle2 className="h-3 w-3" />
+                Completed
+              </Badge>
+            ) : (
+              <Badge variant="secondary" data-testid="badge-progress">
+                Question {currentQuestion} / {session.currentQuestionIndex + 1}
+              </Badge>
+            )}
+          </div>
         </div>
       </div>
 

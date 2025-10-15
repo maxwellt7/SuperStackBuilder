@@ -257,6 +257,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Export Stack transcript
+  app.get("/api/stacks/:sessionId/export", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { sessionId } = req.params;
+
+      const session = await storage.getStackSession(sessionId);
+      if (!session) {
+        return res.status(404).json({ message: "Session not found" });
+      }
+
+      // Verify ownership
+      if (session.userId !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const messages = await storage.getSessionMessages(sessionId);
+
+      // Generate text transcript
+      const timestamp = new Date().toISOString().split('T')[0];
+      let transcript = `MindGrowth Stack Transcript\n`;
+      transcript += `================================\n\n`;
+      transcript += `Title: ${session.title}\n`;
+      transcript += `Stack Type: ${session.stackType.charAt(0).toUpperCase() + session.stackType.slice(1)}\n`;
+      transcript += `CORE 4 Domain: ${session.core4Domain.charAt(0).toUpperCase() + session.core4Domain.slice(1)}\n`;
+      transcript += `Subject: ${session.subjectEntity}\n`;
+      transcript += `Date: ${timestamp}\n`;
+      transcript += `Status: ${session.status === "completed" ? "Completed" : "In Progress"}\n`;
+      transcript += `\n================================\n\n`;
+
+      messages.forEach((message, index) => {
+        if (message.role === "assistant") {
+          transcript += `Question ${message.questionNumber || index + 1}:\n`;
+          transcript += `${message.content}\n\n`;
+        } else {
+          transcript += `Your Response:\n`;
+          transcript += `${message.content}\n\n`;
+          transcript += `---\n\n`;
+        }
+      });
+
+      transcript += `\n================================\n`;
+      transcript += `End of Transcript\n`;
+      transcript += `Generated: ${new Date().toISOString()}\n`;
+
+      res.setHeader('Content-Type', 'text/plain');
+      res.setHeader('Content-Disposition', `attachment; filename="${session.title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}-transcript.txt"`);
+      res.send(transcript);
+    } catch (error) {
+      console.error("Error exporting transcript:", error);
+      res.status(500).json({ message: "Failed to export transcript" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
