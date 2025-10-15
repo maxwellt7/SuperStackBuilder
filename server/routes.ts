@@ -5,6 +5,7 @@ import { setupAuth, isAuthenticated } from "./replitAuth";
 import { getAIResponse, getInitialQuestion } from "./ai";
 import { insertStackSessionSchema, insertStackMessageSchema, stackQuestionFlows, type StackType } from "@shared/schema";
 import { z } from "zod";
+import { upsertMessageEmbedding, semanticSearch, findSimilarMessages, analyzePatterns } from "./pinecone";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -142,12 +143,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Save user message
-      await storage.createStackMessage({
+      const userMessage = await storage.createStackMessage({
         sessionId: session.id,
         role: "user",
         content: content.trim(),
         questionNumber: null,
       });
+
+      // Create embedding for semantic search (async, don't await)
+      upsertMessageEmbedding(
+        userMessage.id,
+        userId,
+        session.id,
+        content.trim(),
+        {
+          role: "user",
+          stackType: session.stackType,
+          core4Domain: session.core4Domain,
+          timestamp: new Date().toISOString(),
+        }
+      ).catch(err => console.error("Error creating embedding:", err));
 
       // Get conversation history
       const allMessages = await storage.getSessionMessages(sessionId);
@@ -173,12 +188,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const isLastQuestion = nextQuestionIndex >= questions.length;
 
       // Save AI response
-      await storage.createStackMessage({
+      const assistantMessage = await storage.createStackMessage({
         sessionId: session.id,
         role: "assistant",
         content: aiResponse,
         questionNumber: isLastQuestion ? null : nextQuestionIndex + 1,
       });
+
+      // Create embedding for AI response (async, don't await)
+      upsertMessageEmbedding(
+        assistantMessage.id,
+        userId,
+        session.id,
+        aiResponse,
+        {
+          role: "assistant",
+          stackType: session.stackType,
+          core4Domain: session.core4Domain,
+          questionNumber: nextQuestionIndex + 1,
+          timestamp: new Date().toISOString(),
+        }
+      ).catch(err => console.error("Error creating embedding:", err));
 
       // Update session progress
       if (!isLastQuestion) {
@@ -254,6 +284,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching stats:", error);
       res.status(500).json({ message: "Failed to fetch stats" });
+    }
+  });
+
+  // Semantic search across user's Stacks
+  app.post("/api/stacks/search", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { query, limit = 10 } = req.body;
+
+      if (!query || typeof query !== 'string') {
+        return res.status(400).json({ message: "Search query is required" });
+      }
+
+      const results = await semanticSearch(userId, query, limit);
+      res.json(results);
+    } catch (error) {
+      console.error("Error searching stacks:", error);
+      res.status(500).json({ message: "Failed to search stacks" });
+    }
+  });
+
+  // Find similar messages to a given message
+  app.get("/api/stacks/similar/:messageId", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { messageId } = req.params;
+      const { sessionId } = req.query;
+
+      if (!sessionId) {
+        return res.status(400).json({ message: "Session ID is required" });
+      }
+
+      // Verify session ownership first
+      const session = await storage.getStackSession(sessionId as string);
+      if (!session) {
+        return res.status(404).json({ message: "Session not found" });
+      }
+
+      if (session.userId !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      // Now safe to get messages
+      const messages = await storage.getSessionMessages(sessionId as string);
+      const message = messages.find(m => m.id === messageId);
+
+      if (!message) {
+        return res.status(404).json({ message: "Message not found" });
+      }
+
+      const similar = await findSimilarMessages(userId, message.content, sessionId as string);
+      res.json(similar);
+    } catch (error) {
+      console.error("Error finding similar messages:", error);
+      res.status(500).json({ message: "Failed to find similar messages" });
+    }
+  });
+
+  // Analyze patterns for a theme
+  app.post("/api/stacks/patterns", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { theme } = req.body;
+
+      if (!theme || typeof theme !== 'string') {
+        return res.status(400).json({ message: "Theme is required" });
+      }
+
+      const patterns = await analyzePatterns(userId, theme);
+      res.json(patterns);
+    } catch (error) {
+      console.error("Error analyzing patterns:", error);
+      res.status(500).json({ message: "Failed to analyze patterns" });
     }
   });
 
