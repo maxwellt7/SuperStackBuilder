@@ -58,12 +58,13 @@ export default function NewStack() {
 
   const createStackMutation = useMutation({
     mutationFn: async (values: FormValues) => {
-      return await apiRequest("POST", "/api/stacks/create", {
+      const response = await apiRequest("POST", "/api/stacks/create", {
         title: values.title,
         stackType: stackType as StackType,
         core4Domain: values.core4Domain,
         subjectEntity: values.subjectEntity,
       });
+      return await response.json();
     },
     onSuccess: (data: any) => {
       navigate(`/stack/${data.sessionId}`);
