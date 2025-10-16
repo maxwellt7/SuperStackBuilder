@@ -13,6 +13,7 @@ import NewStack from "@/pages/new-stack";
 import StackSessionPage from "@/pages/stack-session";
 import History from "@/pages/history";
 import Settings from "@/pages/settings";
+import Insights from "@/pages/insights";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -28,6 +29,7 @@ function Router() {
           <Route path="/stack/new/:stackType" component={NewStack} />
           <Route path="/stack/:sessionId" component={StackSessionPage} />
           <Route path="/history" component={History} />
+          <Route path="/insights" component={Insights} />
           <Route path="/settings" component={Settings} />
         </>
       )}

@@ -360,6 +360,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Cognitive Insights - Generate comprehensive insights
+  app.get("/api/insights/cognitive", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const timeframeMonths = parseInt(req.query.timeframe as string) || 3;
+
+      const { generateCognitiveInsights } = await import('./insights');
+      const insights = await generateCognitiveInsights(userId, timeframeMonths);
+      res.json(insights);
+    } catch (error) {
+      console.error("Error generating cognitive insights:", error);
+      res.status(500).json({ message: "Failed to generate cognitive insights" });
+    }
+  });
+
+  // Analyze specific theme
+  app.post("/api/insights/theme", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { theme } = req.body;
+
+      if (!theme || typeof theme !== 'string') {
+        return res.status(400).json({ message: "Theme is required" });
+      }
+
+      const { analyzeSpecificTheme } = await import('./insights');
+      const themeInsight = await analyzeSpecificTheme(userId, theme);
+      res.json(themeInsight);
+    } catch (error) {
+      console.error("Error analyzing theme:", error);
+      res.status(500).json({ message: "Failed to analyze theme" });
+    }
+  });
+
+  // Identify belief patterns
+  app.get("/api/insights/beliefs", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+
+      const { identifyBeliefPatterns } = await import('./insights');
+      const beliefs = await identifyBeliefPatterns(userId);
+      res.json(beliefs);
+    } catch (error) {
+      console.error("Error identifying belief patterns:", error);
+      res.status(500).json({ message: "Failed to identify belief patterns" });
+    }
+  });
+
+  // Identify emotional triggers
+  app.get("/api/insights/triggers", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+
+      const { identifyEmotionalTriggers } = await import('./insights');
+      const triggers = await identifyEmotionalTriggers(userId);
+      res.json(triggers);
+    } catch (error) {
+      console.error("Error identifying emotional triggers:", error);
+      res.status(500).json({ message: "Failed to identify emotional triggers" });
+    }
+  });
+
   // Export Stack transcript
   app.get("/api/stacks/:sessionId/export", isAuthenticated, async (req: any, res) => {
     try {
