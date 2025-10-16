@@ -120,18 +120,30 @@ export async function getAIResponse(
 
   // Construct a guidance prompt for Claude
   const guidancePrompt = questionNumber < questions.length - 1
-    ? `The user has just responded to question ${questionNumber + 1}. Acknowledge their response with empathy and insight, reflecting on what they've shared. Then, when appropriate, introduce the next question naturally:
+    ? `The user has just responded to question ${questionNumber + 1}. 
+
+Provide a BRIEF acknowledgment (1 sentence maximum), then immediately ask the next question:
 
 "${formattedQuestion}"
 
-Keep your response conversational, supportive, and focused on deepening their reflection. Don't rush - take time to validate and explore what they've shared before moving to the next question.`
-    : `The user has just completed the final question of this ${stackType} Stack. Acknowledge their full journey through this reflection with warmth and recognition of their insights. Summarize key themes you've noticed and celebrate their completion. Keep it meaningful but concise (2-3 paragraphs).`;
+Keep it simple and clean. No deep reflection or analysis yet - save that for the end summary. Just acknowledge briefly and move to the next question.`
+    : `The user has just completed the final question of this ${stackType} Stack. 
+
+NOW provide a comprehensive summary that includes:
+
+1. **Key Insights**: The most important revelations and patterns you've noticed throughout their responses
+2. **Emotional Journey**: How their feelings and perspectives evolved through the conversation
+3. **Core Themes**: Recurring patterns, beliefs, or values that emerged
+4. **Actionable Takeaways**: Specific actions they committed to and recommendations based on their reflections
+5. **Empowering Closing**: Warm recognition of their growth and commitment to change
+
+Make this summary meaningful and thorough (4-6 paragraphs). This is where you provide all the therapeutic insight and reflection that was deferred during the conversation.`;
 
   try {
     const response = await anthropic.messages.create({
       // "claude-sonnet-4-20250514"
       model: DEFAULT_MODEL_STR,
-      max_tokens: 2048,
+      max_tokens: questionNumber < questions.length - 1 ? 512 : 3072,
       temperature: 0.7,
       system: `${stackSystemPrompts[stackType]}\n\n${guidancePrompt}`,
       messages,

@@ -54,6 +54,7 @@ Preferred communication style: Simple, everyday language.
 - Custom system prompts for each Stack type (gratitude, idea, discover, angry)
 - Implements CBT and NLP techniques in conversation flow
 - Structured question progression based on predefined flows in schema
+- **Conversation Flow**: Brief responses (1 sentence acknowledgment + next question) during chat, comprehensive summary with insights at completion
 
 **Session Management**: Express sessions with PostgreSQL session store
 - Session-based authentication
@@ -160,6 +161,17 @@ Preferred communication style: Simple, everyday language.
 - `SESSION_SECRET` - Express session encryption key
 
 ## Recent Changes (October 2025)
+
+### Conversation Flow Optimization (October 16, 2025)
+- **Streamlined Chat Experience**: AI responses during Stack conversations are now concise (1 sentence acknowledgment + next question)
+- **Token Optimization**: During-conversation responses limited to 512 tokens, end summaries expanded to 3072 tokens
+- **Enhanced Summary**: Comprehensive 4-6 paragraph summary at completion includes:
+  - Key insights and revelations from responses
+  - Emotional journey and perspective evolution
+  - Core themes and recurring patterns
+  - Actionable takeaways and commitments
+  - Empowering recognition of growth
+- **User Experience**: Cleaner flow allows users to move through structured questions without verbose interruptions, with all therapeutic insight delivered in final summary
 
 ### Airtable Integration (Task 8) - COMPLETED
 - **Bidirectional Sync**: Application ↔ Airtable data synchronization
