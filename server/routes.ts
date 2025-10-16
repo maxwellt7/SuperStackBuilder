@@ -7,6 +7,7 @@ import { insertStackSessionSchema, insertStackMessageSchema, stackQuestionFlows,
 import { z } from "zod";
 import { upsertMessageEmbedding, semanticSearch, findSimilarMessages, analyzePatterns } from "./pinecone";
 import { generatePersonalizedRecommendations } from "./insights";
+import { generateAdvancedAnalytics } from "./analytics";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -433,6 +434,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error generating recommendations:", error);
       res.status(500).json({ message: "Failed to generate recommendations" });
+    }
+  });
+
+  // Get advanced analytics
+  app.get("/api/analytics/advanced", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+
+      const analytics = await generateAdvancedAnalytics(userId);
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error generating advanced analytics:", error);
+      res.status(500).json({ message: "Failed to generate advanced analytics" });
     }
   });
 
