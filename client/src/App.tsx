@@ -14,6 +14,7 @@ import StackSessionPage from "@/pages/stack-session";
 import History from "@/pages/history";
 import Settings from "@/pages/settings";
 import Insights from "@/pages/insights";
+import Recommendations from "@/pages/recommendations";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -30,6 +31,7 @@ function Router() {
           <Route path="/stack/:sessionId" component={StackSessionPage} />
           <Route path="/history" component={History} />
           <Route path="/insights" component={Insights} />
+          <Route path="/recommendations" component={Recommendations} />
           <Route path="/settings" component={Settings} />
         </>
       )}

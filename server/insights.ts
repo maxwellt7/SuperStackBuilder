@@ -46,6 +46,36 @@ export interface CognitiveInsights {
   actionableRecommendations: string[];
 }
 
+export interface TransformationOpportunity {
+  area: string;
+  currentPattern: string;
+  desiredPattern: string;
+  specificActions: string[];
+  difficulty: 'easy' | 'moderate' | 'challenging';
+  expectedImpact: 'low' | 'medium' | 'high';
+  relatedThemes: string[];
+}
+
+export interface PersonalizedRecommendations {
+  transformationOpportunities: TransformationOpportunity[];
+  priorityActions: Array<{
+    action: string;
+    rationale: string;
+    timeframe: string;
+    resources: string[];
+  }>;
+  growthMetrics: {
+    beliefShiftPotential: number;
+    emotionalRegulationImprovement: number;
+    overallGrowthTrajectory: string;
+  };
+  nextStackRecommendation: {
+    stackType: StackType;
+    focus: string;
+    reason: string;
+  };
+}
+
 export async function generateCognitiveInsights(
   userId: string,
   timeframeMonths: number = 3
@@ -461,5 +491,129 @@ Return ONLY valid JSON array.`;
   } catch (error) {
     console.error('Error identifying emotional triggers:', error);
     throw new Error('Failed to identify emotional triggers');
+  }
+}
+
+export async function generatePersonalizedRecommendations(
+  userId: string
+): Promise<PersonalizedRecommendations> {
+  try {
+    // Get comprehensive insights
+    const insights = await generateCognitiveInsights(userId, 6);
+    
+    if (insights.themes.length === 0) {
+      return {
+        transformationOpportunities: [],
+        priorityActions: [{
+          action: "Complete your first Stack session",
+          rationale: "Begin tracking your thoughts and patterns",
+          timeframe: "This week",
+          resources: ["Start with a Gratitude Stack to build positive momentum"]
+        }],
+        growthMetrics: {
+          beliefShiftPotential: 0,
+          emotionalRegulationImprovement: 0,
+          overallGrowthTrajectory: "Just starting"
+        },
+        nextStackRecommendation: {
+          stackType: "gratitude",
+          focus: "Building positive awareness",
+          reason: "Gratitude Stacks help establish a foundation of positive reflection"
+        }
+      };
+    }
+
+    // Use Claude to generate transformation opportunities
+    const recommendationPrompt = `You are a transformation coach analyzing a client's growth patterns to identify specific transformation opportunities.
+
+CLIENT'S CURRENT PATTERNS:
+
+Belief Patterns:
+${insights.beliefPatterns.map((bp, idx) => 
+  `${idx + 1}. ${bp.pattern} (${bp.type}) - ${bp.evolution}`
+).join('\n')}
+
+Emotional Triggers:
+${insights.emotionalTriggers.map((et, idx) => 
+  `${idx + 1}. ${et.trigger} → ${et.emotion}`
+).join('\n')}
+
+Recurring Themes:
+${insights.themes.slice(0, 5).map((t, idx) => 
+  `${idx + 1}. ${t.theme} (${t.emotionalTone}) - ${t.interpretation}`
+).join('\n')}
+
+Growth Narrative:
+${insights.overallGrowthNarrative}
+
+Based on this analysis, generate a comprehensive transformation plan in JSON format:
+
+{
+  "transformationOpportunities": [
+    {
+      "area": "Specific area of growth (e.g., 'Self-Worth', 'Emotional Regulation')",
+      "currentPattern": "Current limiting pattern",
+      "desiredPattern": "Empowering replacement pattern",
+      "specificActions": ["Concrete action 1", "Concrete action 2", "Concrete action 3"],
+      "difficulty": "easy/moderate/challenging",
+      "expectedImpact": "low/medium/high",
+      "relatedThemes": ["theme1", "theme2"]
+    }
+  ],
+  "priorityActions": [
+    {
+      "action": "Specific actionable step",
+      "rationale": "Why this action matters now",
+      "timeframe": "When to do this (e.g., 'This week', 'Next 2 weeks')",
+      "resources": ["Resource 1", "Resource 2"]
+    }
+  ],
+  "growthMetrics": {
+    "beliefShiftPotential": 0-100 score of how ready they are for transformation,
+    "emotionalRegulationImprovement": 0-100 score of emotional growth potential,
+    "overallGrowthTrajectory": "accelerating/steady/emerging"
+  },
+  "nextStackRecommendation": {
+    "stackType": "gratitude/idea/discover/angry",
+    "focus": "What to focus on in next Stack",
+    "reason": "Why this Stack type is recommended now"
+  }
+}
+
+Guidelines:
+- Focus on 2-4 high-impact transformation opportunities
+- Make actions specific, measurable, and achievable
+- Prioritize based on readiness and impact
+- Connect recommendations to their existing patterns
+- Be encouraging but realistic about difficulty
+
+Return ONLY valid JSON.`;
+
+    const response = await anthropic.messages.create({
+      model: DEFAULT_MODEL_STR,
+      max_tokens: 3000,
+      temperature: 0.4,
+      messages: [
+        {
+          role: 'user',
+          content: recommendationPrompt,
+        },
+      ],
+    });
+
+    const textContent = response.content.find(block => block.type === 'text');
+    if (!textContent || textContent.type !== 'text') {
+      throw new Error('No text content in AI response');
+    }
+
+    const jsonMatch = textContent.text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('No JSON found in AI response');
+    }
+
+    return JSON.parse(jsonMatch[0]) as PersonalizedRecommendations;
+  } catch (error) {
+    console.error('Error generating personalized recommendations:', error);
+    throw new Error('Failed to generate personalized recommendations');
   }
 }

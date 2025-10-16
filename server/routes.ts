@@ -6,6 +6,7 @@ import { getAIResponse, getInitialQuestion } from "./ai";
 import { insertStackSessionSchema, insertStackMessageSchema, stackQuestionFlows, type StackType } from "@shared/schema";
 import { z } from "zod";
 import { upsertMessageEmbedding, semanticSearch, findSimilarMessages, analyzePatterns } from "./pinecone";
+import { generatePersonalizedRecommendations } from "./insights";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -419,6 +420,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error identifying emotional triggers:", error);
       res.status(500).json({ message: "Failed to identify emotional triggers" });
+    }
+  });
+
+  // Get personalized recommendations
+  app.get("/api/insights/recommendations", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+
+      const recommendations = await generatePersonalizedRecommendations(userId);
+      res.json(recommendations);
+    } catch (error) {
+      console.error("Error generating recommendations:", error);
+      res.status(500).json({ message: "Failed to generate recommendations" });
     }
   });
 
