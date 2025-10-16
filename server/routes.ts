@@ -8,6 +8,12 @@ import { z } from "zod";
 import { upsertMessageEmbedding, semanticSearch, findSimilarMessages, analyzePatterns } from "./pinecone";
 import { generatePersonalizedRecommendations } from "./insights";
 import { generateAdvancedAnalytics } from "./analytics";
+import { 
+  getAllAirtableUsers, 
+  getAllAirtableSubscriptions, 
+  updateUserActivity,
+  syncSubscriptionToAirtable 
+} from "./airtable";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -220,6 +226,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         // Auto-complete if last question
         await storage.completeStackSession(session.id);
+        
+        // Update user activity in Airtable (completely detached, truly non-blocking)
+        setImmediate(() => {
+          storage.getUserStackSessions(userId).then(userSessions => {
+            const totalStacks = userSessions.length;
+            const completedStacks = userSessions.filter(s => s.status === 'completed').length;
+            updateUserActivity(userId, totalStacks, completedStacks).catch(err => 
+              console.error('Airtable activity update error:', err)
+            );
+          }).catch(err => console.error('Error fetching sessions for Airtable update:', err));
+        });
       }
 
       res.json({ success: true });
@@ -447,6 +464,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error generating advanced analytics:", error);
       res.status(500).json({ message: "Failed to generate advanced analytics" });
+    }
+  });
+
+  // Admin: Get all Airtable users
+  app.get("/api/admin/airtable/users", isAuthenticated, async (req: any, res) => {
+    try {
+      const result = await getAllAirtableUsers();
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error fetching Airtable users:", error);
+      res.status(500).json({ message: "Failed to fetch Airtable users" });
+    }
+  });
+
+  // Admin: Get all Airtable subscriptions
+  app.get("/api/admin/airtable/subscriptions", isAuthenticated, async (req: any, res) => {
+    try {
+      const result = await getAllAirtableSubscriptions();
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error fetching Airtable subscriptions:", error);
+      res.status(500).json({ message: "Failed to fetch Airtable subscriptions" });
+    }
+  });
+
+  // Admin: Update subscription for a user
+  app.post("/api/admin/subscriptions", isAuthenticated, async (req: any, res) => {
+    try {
+      const { userId, planType, status, expiresAt, autoRenew } = req.body;
+
+      if (!userId || !planType || !status) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      // Check if Airtable is configured
+      const airtableEnabled = !!(process.env.AIRTABLE_API_KEY && process.env.AIRTABLE_BASE_ID);
+      
+      if (!airtableEnabled) {
+        return res.status(503).json({ 
+          message: "Airtable integration is not configured",
+          configured: false 
+        });
+      }
+
+      await syncSubscriptionToAirtable(
+        userId,
+        planType,
+        status,
+        new Date(),
+        expiresAt ? new Date(expiresAt) : undefined,
+        autoRenew ?? true
+      );
+
+      res.json({ message: "Subscription updated successfully", configured: true });
+    } catch (error) {
+      console.error("Error updating subscription:", error);
+      res.status(500).json({ message: "Failed to update subscription" });
     }
   });
 

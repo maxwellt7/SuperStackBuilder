@@ -32,6 +32,10 @@ Preferred communication style: Simple, everyday language.
 - New Stack creation form (collects title, CORE 4 domain, subject entity)
 - Stack Session chat interface (AI-guided conversation)
 - History (browsable list of all Stack sessions)
+- Insights (cognitive patterns and belief analysis)
+- Analytics (advanced metrics dashboard with emotional regulation, self-awareness, resilience, and growth tracking)
+- Recommendations (personalized transformation opportunities)
+- Admin (Airtable user management and subscription control)
 - Settings (user profile and preferences)
 
 ### Backend Architecture
@@ -42,6 +46,9 @@ Preferred communication style: Simple, everyday language.
 - `/api/auth/*` - Authentication routes
 - `/api/stacks/*` - Stack session CRUD operations
 - `/api/stacks/:sessionId/message` - Chat message handling
+- `/api/insights/*` - Cognitive insights and pattern analysis
+- `/api/analytics/advanced` - Advanced analytics metrics
+- `/api/admin/airtable/*` - Airtable data access for admin interface
 
 **AI Integration**: Anthropic Claude API (claude-sonnet-4-20250514)
 - Custom system prompts for each Stack type (gratitude, idea, discover, angry)
@@ -127,9 +134,48 @@ Preferred communication style: Simple, everyday language.
 - Runtime error overlay for development
 - TSX for TypeScript execution in development
 
+**Airtable Integration**:
+- Airtable SDK for data synchronization
+  - Base structure: Users table and Subscriptions table
+  - Bidirectional sync: Auth events sync to Airtable, admin changes update app
+  - Non-blocking operations to prevent sync failures from breaking app
+  - Admin dashboard for user management and subscription control
+
+**Vector Search**:
+- Pinecone vector database for semantic search
+  - OpenAI embeddings (1536-dimensional vectors)
+  - Metadata filtering by Stack type, CORE 4 domain, user
+  - Pattern analysis and similar message discovery
+  - Insights engine for cognitive pattern recognition
+
 **Key Environment Variables**:
 - `DATABASE_URL` - Neon PostgreSQL connection string
 - `ANTHROPIC_API_KEY` - Claude AI API key
+- `OPENAI_API_KEY` - OpenAI embeddings API key
+- `PINECONE_API_KEY` - Pinecone vector database key
+- `AIRTABLE_API_KEY` - Airtable personal access token
+- `AIRTABLE_BASE_ID` - Airtable base identifier
 - `REPL_ID` - Replit application identifier
 - `ISSUER_URL` - OIDC issuer endpoint
 - `SESSION_SECRET` - Express session encryption key
+
+## Recent Changes (October 2025)
+
+### Airtable Integration (Task 8)
+- Implemented bidirectional sync between application and Airtable
+- Created `server/airtable.ts` module for all Airtable operations
+- User sync on authentication: Creates/updates Airtable records on login
+- Activity tracking: Updates Stack counts and completion stats in Airtable
+- Admin interface at `/admin` with user and subscription management
+- Subscription management: Create, update, and view subscription status
+- Two Airtable tables: Users (profile + activity) and Subscriptions (plans + status)
+- Non-blocking sync operations prevent Airtable failures from breaking app
+
+### Advanced Analytics Dashboard (Task 7)
+- Comprehensive analytics engine in `server/analytics.ts`
+- Emotional regulation metrics: Current score, trend analysis, response times, emotional balance
+- Self-awareness scoring: Reflection depth, pattern recognition, insight quality, consistency
+- Resilience tracking: Completion rate, streaks, recovery time, adaptability
+- Growth trajectory: Overall growth score, milestones, strength/growth areas, weekly progress
+- Fixed chronological sorting bug to ensure accurate temporal calculations
+- Interactive visualizations with charts and progress indicators

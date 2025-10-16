@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
-import { Brain, LayoutDashboard, History, Settings, LogOut, Sparkles, Target, BarChart3 } from "lucide-react";
+import { Brain, LayoutDashboard, History, Settings, LogOut, Sparkles, Target, BarChart3, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -44,6 +44,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       href: "/recommendations",
       label: "Recommendations",
       icon: Target,
+    },
+    {
+      href: "/admin",
+      label: "Admin",
+      icon: Shield,
     },
     {
       href: "/settings",
@@ -151,6 +156,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                       <a className="flex items-center w-full">
                         <Target className="mr-2 h-4 w-4" />
                         Recommendations
+                      </a>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild className="md:hidden">
+                    <Link href="/admin">
+                      <a className="flex items-center w-full">
+                        <Shield className="mr-2 h-4 w-4" />
+                        Admin
                       </a>
                     </Link>
                   </DropdownMenuItem>
