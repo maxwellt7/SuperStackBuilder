@@ -1,13 +1,13 @@
 import { Pinecone } from '@pinecone-database/pinecone';
-import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from 'openai';
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
 let pineconeClient: Pinecone | null = null;
 const INDEX_NAME = 'mindgrowth-stacks';
-const DIMENSION = 1024; // Claude embeddings dimension
+const DIMENSION = 1536; // OpenAI text-embedding-3-small dimension
 
 export async function initPinecone() {
   if (pineconeClient) return pineconeClient;
@@ -73,72 +73,24 @@ export async function initPinecone() {
 
 export async function generateEmbedding(text: string): Promise<number[]> {
   try {
-    // Use Anthropic's API to generate semantic embeddings
-    // Note: Since Anthropic doesn't have a native embeddings endpoint,
-    // we'll use Claude to generate a semantic representation and convert to vector
-    
-    const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 500,
-      messages: [
-        {
-          role: 'user',
-          content: `You are an embedding generator. Extract the semantic essence of this text into ${DIMENSION} numerical features representing: emotional tone, key themes, concepts, entities, sentiment, topics, and semantic meaning. Output ONLY a JSON array of ${DIMENSION} numbers between -1 and 1, nothing else.\n\nText: ${text.substring(0, 1000)}`
-        }
-      ],
+    // Use OpenAI's text-embedding API for high-quality semantic embeddings
+    const response = await openai.embeddings.create({
+      model: 'text-embedding-3-small',
+      input: text.substring(0, 8000), // Limit to avoid token limits
+      encoding_format: 'float',
     });
 
-    const content = response.content[0];
-    if (content.type !== 'text') {
-      throw new Error('Unexpected response type from Claude');
-    }
-
-    // Parse the embedding from Claude's response
-    const embeddingText = content.text.trim();
-    const embeddingMatch = embeddingText.match(/\[[\s\S]*\]/);
-    
-    if (!embeddingMatch) {
-      // Fallback: Create deterministic embedding from text
-      return createDeterministicEmbedding(text);
-    }
-
-    const embedding = JSON.parse(embeddingMatch[0]) as number[];
+    const embedding = response.data[0].embedding;
     
     if (!Array.isArray(embedding) || embedding.length !== DIMENSION) {
-      return createDeterministicEmbedding(text);
+      throw new Error(`Invalid embedding dimension: ${embedding.length}, expected ${DIMENSION}`);
     }
     
-    // Normalize the embedding
-    const magnitude = Math.sqrt(embedding.reduce((sum, val) => sum + val * val, 0));
-    return embedding.map(val => val / (magnitude || 1));
+    return embedding;
   } catch (error) {
-    console.error('Error generating embedding with Claude, using fallback:', error);
-    return createDeterministicEmbedding(text);
+    console.error('Error generating embedding with OpenAI:', error);
+    throw error;
   }
-}
-
-function createDeterministicEmbedding(text: string): number[] {
-  // Fallback embedding using text features
-  const embedding = new Array(DIMENSION).fill(0);
-  const words = text.toLowerCase().split(/\s+/);
-  const chars = text.split('');
-  
-  for (let i = 0; i < DIMENSION; i++) {
-    const wordIndex = i % words.length;
-    const charIndex = i % chars.length;
-    const word = words[wordIndex] || '';
-    const char = chars[charIndex] || '';
-    
-    embedding[i] = (
-      (word.length * 0.1) +
-      (char.charCodeAt(0) / 255) +
-      (i / DIMENSION) +
-      Math.sin(i * 0.01) * 0.1
-    ) / 4;
-  }
-  
-  const magnitude = Math.sqrt(embedding.reduce((sum, val) => sum + val * val, 0));
-  return embedding.map(val => val / (magnitude || 1));
 }
 
 export async function upsertMessageEmbedding(
