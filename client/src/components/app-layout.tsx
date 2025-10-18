@@ -1,4 +1,5 @@
 import { Link, useLocation } from "wouter";
+import { SignOutButton } from "@clerk/clerk-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Brain, LayoutDashboard, History, Settings, LogOut, Sparkles, Target, BarChart3, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -176,12 +177,12 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <a href="/api/logout" className="flex items-center w-full">
+                  <SignOutButton>
+                    <DropdownMenuItem className="flex items-center w-full cursor-pointer">
                       <LogOut className="mr-2 h-4 w-4" />
                       Log out
-                    </a>
-                  </DropdownMenuItem>
+                    </DropdownMenuItem>
+                  </SignOutButton>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>

@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+import { setupAuth, isAuthenticated } from "./clerkAuth";
 import { getAIResponse, getInitialQuestion } from "./ai";
 import { insertStackSessionSchema, insertStackMessageSchema, stackQuestionFlows, type StackType } from "@shared/schema";
 import { z } from "zod";
@@ -16,7 +16,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.userId;
       const user = await storage.getUser(userId);
       res.json(user);
     } catch (error) {
@@ -28,7 +28,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create new Stack session
   app.post("/api/stacks/create", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.userId;
       const { title, stackType, core4Domain, subjectEntity } = req.body;
 
       // Validate input
@@ -74,7 +74,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get Stack session
   app.get("/api/stacks/session/:sessionId", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.userId;
       const { sessionId } = req.params;
 
       const session = await storage.getStackSession(sessionId);
@@ -97,7 +97,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get session messages
   app.get("/api/stacks/messages/:sessionId", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.userId;
       const { sessionId } = req.params;
 
       const session = await storage.getStackSession(sessionId);
@@ -121,7 +121,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Send message in Stack session
   app.post("/api/stacks/:sessionId/message", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.userId;
       const { sessionId } = req.params;
       const { content } = req.body;
 
@@ -232,7 +232,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Complete Stack session
   app.post("/api/stacks/:sessionId/complete", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.userId;
       const { sessionId } = req.params;
 
       const session = await storage.getStackSession(sessionId);
@@ -256,7 +256,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get all user sessions
   app.get("/api/stacks/all", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.userId;
       const sessions = await storage.getUserStackSessions(userId);
       res.json(sessions);
     } catch (error) {
@@ -268,7 +268,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get recent user sessions
   app.get("/api/stacks/recent", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.userId;
       const sessions = await storage.getRecentUserStackSessions(userId, 5);
       res.json(sessions);
     } catch (error) {
@@ -280,7 +280,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get user stack stats
   app.get("/api/stacks/stats", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.userId;
       const stats = await storage.getUserStackStats(userId);
       res.json(stats);
     } catch (error) {
@@ -292,7 +292,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Semantic search across user's Stacks
   app.post("/api/stacks/search", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.userId;
       const { query, limit = 10 } = req.body;
 
       if (!query || typeof query !== 'string') {
@@ -310,7 +310,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Find similar messages to a given message
   app.get("/api/stacks/similar/:messageId", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.userId;
       const { messageId } = req.params;
       const { sessionId } = req.query;
 
@@ -347,7 +347,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Analyze patterns for a theme
   app.post("/api/stacks/patterns", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.userId;
       const { theme } = req.body;
 
       if (!theme || typeof theme !== 'string') {
@@ -365,7 +365,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Cognitive Insights - Generate comprehensive insights
   app.get("/api/insights/cognitive", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.userId;
       const timeframeMonths = parseInt(req.query.timeframe as string) || 3;
 
       const { generateCognitiveInsights } = await import('./insights');
@@ -380,7 +380,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Analyze specific theme
   app.post("/api/insights/theme", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.userId;
       const { theme } = req.body;
 
       if (!theme || typeof theme !== 'string') {
@@ -399,7 +399,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Identify belief patterns
   app.get("/api/insights/beliefs", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.userId;
 
       const { identifyBeliefPatterns } = await import('./insights');
       const beliefs = await identifyBeliefPatterns(userId);
@@ -413,7 +413,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Identify emotional triggers
   app.get("/api/insights/triggers", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.userId;
 
       const { identifyEmotionalTriggers } = await import('./insights');
       const triggers = await identifyEmotionalTriggers(userId);
@@ -427,7 +427,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get personalized recommendations
   app.get("/api/insights/recommendations", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.userId;
 
       const recommendations = await generatePersonalizedRecommendations(userId);
       res.json(recommendations);
@@ -440,7 +440,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get advanced analytics
   app.get("/api/analytics/advanced", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.userId;
 
       const analytics = await generateAdvancedAnalytics(userId);
       res.json(analytics);
@@ -541,7 +541,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Export Stack transcript
   app.get("/api/stacks/:sessionId/export", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.userId;
       const { sessionId } = req.params;
 
       const session = await storage.getStackSession(sessionId);

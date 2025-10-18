@@ -74,14 +74,11 @@ ANTHROPIC_API_KEY=sk-ant-api03-...  # Get from console.anthropic.com
 COHERE_API_KEY=...                  # Get from dashboard.cohere.com
 ```
 
-#### Authentication (Replit Auth)
+#### Authentication (Clerk)
 ```bash
-SESSION_SECRET=your-super-secret-random-string-here-min-32-chars
-
-# For Replit Auth (if continuing to use it)
-REPLIT_DOMAINS=your-railway-domain.railway.app
-REPL_ID=your-repl-id  # From your Replit project
-ISSUER_URL=https://replit.com/oidc  # Optional, defaults to this
+# Get both keys from: https://dashboard.clerk.com/last-active?path=api-keys
+CLERK_SECRET_KEY=sk_test_...                    # Backend auth
+VITE_CLERK_PUBLISHABLE_KEY=pk_test_...          # Frontend auth
 ```
 
 #### Other
@@ -105,6 +102,15 @@ PORT=5000  # Railway sets this automatically, but can be explicit
 2. Sign in/up
 3. Navigate to **API Keys**
 4. Copy your API key
+
+### Clerk API Keys
+1. Go to [dashboard.clerk.com](https://dashboard.clerk.com)
+2. Sign in/up and create a new application
+3. Go to **API Keys** in the left sidebar
+4. Copy **both**:
+   - **Publishable Key** (starts with `pk_test_...`) → use for `VITE_CLERK_PUBLISHABLE_KEY`
+   - **Secret Key** (starts with `sk_test_...`) → use for `CLERK_SECRET_KEY`
+5. **Important**: Both keys must be from the same Clerk application
 
 ### MongoDB Atlas URI
 1. Go to [cloud.mongodb.com](https://cloud.mongodb.com)
@@ -169,24 +175,26 @@ See `MONGODB_VECTOR_SETUP.md` for more details.
 
 ---
 
-## Step 6: Authentication Considerations
+## Step 6: Configure Clerk for Production
 
-Your app currently uses **Replit Auth**. For Railway, you have two options:
+Your app now uses **Clerk** for authentication! Here's what you need to know:
 
-### Option A: Continue Using Replit Auth (Quick)
-1. Keep your Replit project active
-2. Set `REPLIT_DOMAINS` to your Railway domain
-3. Update `REPL_ID` with your Replit project ID
-4. ⚠️ Users will still authenticate through Replit
+### Clerk Application Setup
+1. In your Clerk Dashboard, go to **Domains**
+2. Add your Railway domain (e.g., `your-app.railway.app`)
+3. Clerk will automatically handle sign-in/sign-up flows
 
-### Option B: Switch to Standard Auth (Recommended)
-Consider migrating to a standard auth provider:
-- **Auth0**: Enterprise-grade, easy integration
-- **Clerk**: Developer-friendly, great UX
-- **NextAuth.js**: Open source, flexible
-- **Passport.js** with local strategy: Self-hosted
+### Sign-In/Sign-Up Experience
+- Users will see Clerk's beautiful, built-in authentication UI
+- Supports email/password, social logins (Google, GitHub, etc.)
+- Includes passwordless authentication, 2FA, and more
+- Fully customizable branding in Clerk Dashboard
 
-For production apps, switching to a standard auth provider is recommended.
+### Adding Social Logins (Optional)
+1. In Clerk Dashboard → **User & Authentication** → **Social Connections**
+2. Enable Google, GitHub, Facebook, etc.
+3. Follow Clerk's setup instructions for each provider
+4. No code changes needed!
 
 ---
 
@@ -204,7 +212,8 @@ For production apps, switching to a standard auth provider is recommended.
 1. In Railway, go to **"Settings"** → **"Domains"**
 2. Click **"Generate Domain"** or **"Custom Domain"**
 3. Follow Railway's instructions to configure DNS
-4. Update `REPLIT_DOMAINS` environment variable with your new domain
+4. Add your custom domain to Clerk Dashboard → **Domains**
+5. Rebuild your Railway deployment to pick up the domain changes
 
 ---
 
@@ -214,12 +223,12 @@ For production apps, switching to a standard auth provider is recommended.
 - [ ] Database schema pushed (`railway run npm run db:push`)
 - [ ] MongoDB Atlas connected and accessible
 - [ ] MongoDB Vector Search index created and active
-- [ ] All API keys configured
-- [ ] `SESSION_SECRET` set (min 32 random characters)
-- [ ] Auth domains configured correctly
+- [ ] All API keys configured (Anthropic, Cohere, Clerk)
+- [ ] Clerk publishable and secret keys set
+- [ ] Clerk domain configured in dashboard
 - [ ] App deploys successfully
 - [ ] Can access the landing page
-- [ ] Can log in (test authentication)
+- [ ] Can sign up with Clerk (test authentication)
 - [ ] Can create a Stack session (test full flow)
 
 ---
@@ -242,9 +251,10 @@ For production apps, switching to a standard auth provider is recommended.
 
 ### Auth Errors
 ```bash
-# Check REPLIT_DOMAINS matches your Railway domain
-# Verify SESSION_SECRET is set
-# Check REPL_ID is correct
+# Verify CLERK_SECRET_KEY and VITE_CLERK_PUBLISHABLE_KEY are set
+# Check keys are from the same Clerk application
+# Ensure Railway domain is added in Clerk Dashboard → Domains
+# Try signing in with a test account
 ```
 
 ### MongoDB Vector Search Not Working
@@ -287,22 +297,20 @@ Copy this template to keep track of your values:
 
 ```bash
 # Database
-DATABASE_URL=                    # Auto-set by Railway PostgreSQL
-MONGODB_ATLAS_URI=              # From MongoDB Atlas
+DATABASE_URL=                         # Auto-set by Railway PostgreSQL
+MONGODB_ATLAS_URI=                   # From MongoDB Atlas
 
 # AI APIs
-ANTHROPIC_API_KEY=              # From console.anthropic.com
-COHERE_API_KEY=                 # From dashboard.cohere.com
+ANTHROPIC_API_KEY=                   # From console.anthropic.com
+COHERE_API_KEY=                      # From dashboard.cohere.com
 
-# Auth & Security
-SESSION_SECRET=                 # Generate: openssl rand -base64 32
-REPLIT_DOMAINS=                 # Your Railway domain
-REPL_ID=                        # From Replit (if using Replit Auth)
-ISSUER_URL=https://replit.com/oidc  # Optional
+# Clerk Authentication
+CLERK_SECRET_KEY=                    # From dashboard.clerk.com (backend)
+VITE_CLERK_PUBLISHABLE_KEY=          # From dashboard.clerk.com (frontend)
 
 # System
 NODE_ENV=production
-PORT=5000                       # Auto-set by Railway
+PORT=5000                            # Auto-set by Railway
 ```
 
 ---
