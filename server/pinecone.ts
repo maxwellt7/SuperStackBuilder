@@ -1,13 +1,13 @@
 import { Pinecone } from '@pinecone-database/pinecone';
-import OpenAI from 'openai';
+import { CohereClient } from 'cohere-ai';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+const cohere = new CohereClient({
+  token: process.env.COHERE_API_KEY || '',
 });
 
 let pineconeClient: Pinecone | null = null;
 const INDEX_NAME = 'mindgrowth-stacks';
-const DIMENSION = 1536; // OpenAI text-embedding-3-small dimension
+const DIMENSION = 1024; // Cohere embed-english-v3.0 dimension
 
 export async function initPinecone() {
   if (pineconeClient) return pineconeClient;
@@ -73,22 +73,30 @@ export async function initPinecone() {
 
 export async function generateEmbedding(text: string): Promise<number[]> {
   try {
-    // Use OpenAI's text-embedding API for high-quality semantic embeddings
-    const response = await openai.embeddings.create({
-      model: 'text-embedding-3-small',
-      input: text.substring(0, 8000), // Limit to avoid token limits
-      encoding_format: 'float',
+    // Use Cohere's embed API for high-quality semantic embeddings
+    const response = await cohere.embed({
+      texts: [text.substring(0, 8000)], // Limit to avoid token limits
+      model: 'embed-english-v3.0',
+      inputType: 'search_document',
+      embeddingTypes: ['float'],
     });
 
-    const embedding = response.data[0].embedding;
+    // Cohere returns embeddings in response.embeddings
+    let embedding: number[] | undefined;
+    
+    if (typeof response.embeddings === 'object' && response.embeddings !== null && 'float' in response.embeddings) {
+      embedding = (response.embeddings as any).float?.[0];
+    } else if (Array.isArray(response.embeddings)) {
+      embedding = response.embeddings[0];
+    }
     
     if (!Array.isArray(embedding) || embedding.length !== DIMENSION) {
-      throw new Error(`Invalid embedding dimension: ${embedding.length}, expected ${DIMENSION}`);
+      throw new Error(`Invalid embedding dimension: ${embedding?.length}, expected ${DIMENSION}`);
     }
     
     return embedding;
   } catch (error) {
-    console.error('Error generating embedding with OpenAI:', error);
+    console.error('Error generating embedding with Cohere:', error);
     throw error;
   }
 }

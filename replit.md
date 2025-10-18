@@ -144,7 +144,7 @@ Preferred communication style: Simple, everyday language.
 
 **Vector Search**:
 - Pinecone vector database for semantic search
-  - OpenAI embeddings (1536-dimensional vectors)
+  - Cohere embeddings (1024-dimensional vectors using embed-english-v3.0)
   - Metadata filtering by Stack type, CORE 4 domain, user
   - Pattern analysis and similar message discovery
   - Insights engine for cognitive pattern recognition
@@ -152,7 +152,7 @@ Preferred communication style: Simple, everyday language.
 **Key Environment Variables**:
 - `DATABASE_URL` - Neon PostgreSQL connection string
 - `ANTHROPIC_API_KEY` - Claude AI API key
-- `OPENAI_API_KEY` - OpenAI embeddings API key
+- `COHERE_API_KEY` - Cohere embeddings API key
 - `PINECONE_API_KEY` - Pinecone vector database key
 - `AIRTABLE_API_KEY` - Airtable personal access token
 - `AIRTABLE_BASE_ID` - Airtable base identifier
@@ -161,6 +161,12 @@ Preferred communication style: Simple, everyday language.
 - `SESSION_SECRET` - Express session encryption key
 
 ## Recent Changes (October 2025)
+
+### Cohere Embeddings Integration (October 18, 2025)
+- **Switched from OpenAI to Cohere**: Replaced OpenAI text-embedding-3-small with Cohere embed-english-v3.0
+- **Vector Dimensions**: Updated Pinecone index to use 1024-dimensional vectors (Cohere standard)
+- **Cost Optimization**: Cohere provides reliable embeddings at lower cost than OpenAI
+- **API Key Management**: All three external services (Pinecone, Cohere, Airtable) now configured via Replit Secrets
 
 ### Conversation Flow Optimization (October 16, 2025)
 - **Streamlined Chat Experience**: AI responses during Stack conversations are now concise (1 sentence acknowledgment + next question)
