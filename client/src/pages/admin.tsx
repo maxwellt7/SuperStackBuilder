@@ -35,59 +35,57 @@ import { useState } from 'react';
 import { queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 
-interface AirtableUser {
+interface User {
   id: string;
-  fields: {
-    'User ID': string;
-    'Email': string;
-    'First Name'?: string;
-    'Last Name'?: string;
-    'Profile Image URL'?: string;
-    'Created At': string;
-    'Last Active': string;
-    'Total Stacks': number;
-    'Completed Stacks': number;
-    'Subscription Status'?: string;
-  };
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  profileImageUrl?: string;
+  createdAt: string;
+  updatedAt: string;
+  totalStacks: number;
+  completedStacks: number;
+  subscriptionStatus: string;
+  planType: string;
 }
 
-interface AirtableSubscription {
+interface Subscription {
   id: string;
-  fields: {
-    'User ID': string;
-    'Plan Type': string;
-    'Status': string;
-    'Started At': string;
-    'Expires At'?: string;
-    'Auto Renew': boolean;
-  };
+  userId: string;
+  planType: string;
+  status: string;
+  startedAt: string;
+  expiresAt?: string;
+  autoRenew: boolean;
 }
 
-interface AirtableResponse<T> {
-  configured: boolean;
-  data: T[];
+interface UsersResponse {
+  users: User[];
+}
+
+interface SubscriptionsResponse {
+  subscriptions: Subscription[];
 }
 
 export default function Admin() {
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<AirtableUser | null>(null);
-  const [planType, setPlanType] = useState('Basic');
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [planType, setPlanType] = useState('pro');
   const [status, setStatus] = useState('active');
   const [expiresAt, setExpiresAt] = useState('');
   const [autoRenew, setAutoRenew] = useState(true);
 
-  const { data: usersResponse, isLoading: usersLoading } = useQuery<AirtableResponse<AirtableUser>>({
-    queryKey: ['/api/admin/airtable/users'],
+  const { data: usersResponse, isLoading: usersLoading } = useQuery<UsersResponse>({
+    queryKey: ['/api/admin/users'],
   });
 
-  const { data: subscriptionsResponse, isLoading: subscriptionsLoading } = useQuery<AirtableResponse<AirtableSubscription>>({
-    queryKey: ['/api/admin/airtable/subscriptions'],
+  const { data: subscriptionsResponse, isLoading: subscriptionsLoading } = useQuery<SubscriptionsResponse>({
+    queryKey: ['/api/admin/subscriptions'],
   });
 
-  const users = usersResponse?.data || [];
-  const subscriptions = subscriptionsResponse?.data || [];
-  const airtableConfigured = usersResponse?.configured && subscriptionsResponse?.configured;
+  const users = usersResponse?.users || [];
+  const subscriptions = subscriptionsResponse?.subscriptions || [];
 
   const updateSubscriptionMutation = useMutation({
     mutationFn: async (data: {
@@ -104,17 +102,13 @@ export default function Admin() {
       });
       const result = await response.json();
       if (!response.ok) {
-        // Handle Airtable not configured error
-        if (response.status === 503) {
-          throw new Error('Airtable integration is not configured');
-        }
         throw new Error(result.message || 'Failed to update subscription');
       }
       return result;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/airtable/users'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/airtable/subscriptions'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/subscriptions'] });
       toast({
         title: 'Success',
         description: 'Subscription updated successfully',
@@ -124,7 +118,7 @@ export default function Admin() {
     onError: (error: Error) => {
       toast({
         title: 'Error',
-        description: error.message || 'Failed to update subscription',
+        description: error.message,
         variant: 'destructive',
       });
     },
@@ -134,7 +128,7 @@ export default function Admin() {
     if (!selectedUser) return;
 
     updateSubscriptionMutation.mutate({
-      userId: selectedUser.fields['User ID'],
+      userId: selectedUser.id,
       planType,
       status,
       expiresAt: expiresAt || undefined,
@@ -142,35 +136,24 @@ export default function Admin() {
     });
   };
 
-  const getStatusBadge = (status?: string) => {
-    if (!status) return <Badge variant="outline">Free</Badge>;
-    
-    switch (status.toLowerCase()) {
-      case 'active':
-        return <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"><CheckCircle className="w-3 h-3 mr-1 inline" />Active</Badge>;
-      case 'expired':
-        return <Badge className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"><XCircle className="w-3 h-3 mr-1 inline" />Expired</Badge>;
-      case 'cancelled':
-        return <Badge variant="outline"><XCircle className="w-3 h-3 mr-1 inline" />Cancelled</Badge>;
-      default:
-        return <Badge variant="secondary">{status}</Badge>;
-    }
-  };
-
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
+  const openDialog = (user: User) => {
+    setSelectedUser(user);
+    setPlanType(user.planType || 'pro');
+    setStatus(user.subscriptionStatus || 'active');
+    setExpiresAt('');
+    setAutoRenew(true);
+    setDialogOpen(true);
   };
 
   if (usersLoading || subscriptionsLoading) {
     return (
-      <div className="container mx-auto p-6 space-y-6">
-        <Skeleton className="h-10 w-96" />
-        <div className="grid gap-4 md:grid-cols-3">
+      <div className="p-8 space-y-8">
+        <div>
+          <h1 className="text-3xl font-bold mb-2">Admin Dashboard</h1>
+          <p className="text-muted-foreground">Manage users and subscriptions</p>
+        </div>
+        
+        <div className="grid gap-6 md:grid-cols-3">
           <Skeleton className="h-32" />
           <Skeleton className="h-32" />
           <Skeleton className="h-32" />
@@ -180,86 +163,59 @@ export default function Admin() {
   }
 
   const totalUsers = users.length;
-  const activeSubscriptions = subscriptions.filter(s => s.fields.Status === 'active').length;
-  const totalStacks = users.reduce((sum, u) => sum + (u.fields['Total Stacks'] || 0), 0);
+  const activeSubscriptions = subscriptions.filter(s => s.status === 'active').length;
+  const totalStacks = users.reduce((sum, u) => sum + u.totalStacks, 0);
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      {/* Header */}
+    <div className="p-8 space-y-8" data-testid="admin-dashboard">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight" data-testid="text-admin-title">
-          Admin Dashboard
-        </h1>
-        <p className="text-muted-foreground mt-2">
-          Manage users and subscriptions synced with Airtable
-        </p>
-        {!airtableConfigured && (
-          <div className="mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-            <p className="text-sm text-yellow-800 dark:text-yellow-200">
-              <strong>Note:</strong> Airtable integration is not configured. Please set AIRTABLE_API_KEY and AIRTABLE_BASE_ID environment variables to enable sync functionality.
-            </p>
-          </div>
-        )}
+        <h1 className="text-3xl font-bold mb-2">Admin Dashboard</h1>
+        <p className="text-muted-foreground">Manage users and subscriptions</p>
       </div>
 
-      {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-3">
         <Card>
-          <CardHeader className="gap-1 space-y-0 pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Users
-            </CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="flex items-center gap-2">
-              <Users className="w-4 h-4 text-muted-foreground" />
-              <span className="text-2xl font-bold" data-testid="text-total-users">{totalUsers}</span>
-            </div>
+            <div className="text-2xl font-bold">{totalUsers}</div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="gap-1 space-y-0 pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Active Subscriptions
-            </CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Active Subscriptions</CardTitle>
+            <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="flex items-center gap-2">
-              <CreditCard className="w-4 h-4 text-muted-foreground" />
-              <span className="text-2xl font-bold" data-testid="text-active-subs">{activeSubscriptions}</span>
-            </div>
+            <div className="text-2xl font-bold">{activeSubscriptions}</div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="gap-1 space-y-0 pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Stacks
-            </CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Stacks</CardTitle>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-muted-foreground" />
-              <span className="text-2xl font-bold" data-testid="text-total-stacks">{totalStacks}</span>
-            </div>
+            <div className="text-2xl font-bold">{totalStacks}</div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Tabs */}
       <Tabs defaultValue="users" className="space-y-4">
         <TabsList>
           <TabsTrigger value="users" data-testid="tab-users">Users</TabsTrigger>
           <TabsTrigger value="subscriptions" data-testid="tab-subscriptions">Subscriptions</TabsTrigger>
         </TabsList>
 
-        {/* Users Table */}
         <TabsContent value="users" className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle>User Management</CardTitle>
-              <CardDescription>All users synced from Airtable</CardDescription>
+              <CardDescription>All users with Stack activity</CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
@@ -276,117 +232,38 @@ export default function Admin() {
                 </TableHeader>
                 <TableBody>
                   {users.map((user) => (
-                    <TableRow key={user.id} data-testid={`user-row-${user.fields['User ID']}`}>
+                    <TableRow key={user.id} data-testid={`row-user-${user.id}`}>
                       <TableCell className="font-medium">
-                        {user.fields['First Name'] || user.fields['Last Name']
-                          ? `${user.fields['First Name'] || ''} ${user.fields['Last Name'] || ''}`.trim()
-                          : 'N/A'}
+                        {user.firstName && user.lastName
+                          ? `${user.firstName} ${user.lastName}`
+                          : user.firstName || user.lastName || 'N/A'}
                       </TableCell>
-                      <TableCell>{user.fields['Email']}</TableCell>
-                      <TableCell>{formatDate(user.fields['Created At'])}</TableCell>
-                      <TableCell>{formatDate(user.fields['Last Active'])}</TableCell>
+                      <TableCell>{user.email}</TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-1">
-                          <span className="font-semibold">{user.fields['Completed Stacks'] || 0}</span>
-                          <span className="text-muted-foreground text-xs">/ {user.fields['Total Stacks'] || 0}</span>
-                        </div>
+                        {new Date(user.createdAt).toLocaleDateString()}
                       </TableCell>
-                      <TableCell>{getStatusBadge(user.fields['Subscription Status'])}</TableCell>
                       <TableCell>
-                        <Dialog open={dialogOpen && selectedUser?.id === user.id} onOpenChange={(open) => {
-                          setDialogOpen(open);
-                          if (open) {
-                            setSelectedUser(user);
-                            setPlanType('Basic');
-                            setStatus('active');
-                            setExpiresAt('');
-                            setAutoRenew(true);
-                          }
-                        }}>
-                          <DialogTrigger asChild>
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              data-testid={`button-manage-${user.fields['User ID']}`}
-                            >
-                              Manage
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>Manage Subscription</DialogTitle>
-                              <DialogDescription>
-                                Update subscription for {user.fields['Email']}
-                              </DialogDescription>
-                            </DialogHeader>
-                            <div className="grid gap-4 py-4">
-                              <div className="grid gap-2">
-                                <Label htmlFor="planType">Plan Type</Label>
-                                <Select value={planType} onValueChange={setPlanType}>
-                                  <SelectTrigger id="planType" data-testid="select-plan-type">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="Free">Free</SelectItem>
-                                    <SelectItem value="Basic">Basic</SelectItem>
-                                    <SelectItem value="Pro">Pro</SelectItem>
-                                    <SelectItem value="Enterprise">Enterprise</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                              <div className="grid gap-2">
-                                <Label htmlFor="status">Status</Label>
-                                <Select value={status} onValueChange={setStatus}>
-                                  <SelectTrigger id="status" data-testid="select-status">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="active">Active</SelectItem>
-                                    <SelectItem value="expired">Expired</SelectItem>
-                                    <SelectItem value="cancelled">Cancelled</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                              <div className="grid gap-2">
-                                <Label htmlFor="expiresAt">Expires At (Optional)</Label>
-                                <Input
-                                  id="expiresAt"
-                                  type="date"
-                                  value={expiresAt}
-                                  onChange={(e) => setExpiresAt(e.target.value)}
-                                  data-testid="input-expires-at"
-                                />
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <input
-                                  type="checkbox"
-                                  id="autoRenew"
-                                  checked={autoRenew}
-                                  onChange={(e) => setAutoRenew(e.target.checked)}
-                                  data-testid="checkbox-auto-renew"
-                                  className="rounded"
-                                />
-                                <Label htmlFor="autoRenew">Auto Renew</Label>
-                              </div>
-                            </div>
-                            <DialogFooter>
-                              <Button
-                                onClick={handleUpdateSubscription}
-                                disabled={updateSubscriptionMutation.isPending}
-                                data-testid="button-save-subscription"
-                              >
-                                {updateSubscriptionMutation.isPending ? (
-                                  <>
-                                    <Clock className="w-4 h-4 mr-2 animate-spin" />
-                                    Saving...
-                                  </>
-                                ) : (
-                                  'Save Changes'
-                                )}
-                              </Button>
-                            </DialogFooter>
-                          </DialogContent>
-                        </Dialog>
+                        {new Date(user.updatedAt).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm">
+                          {user.completedStacks}/{user.totalStacks}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={user.subscriptionStatus === 'active' ? 'default' : 'secondary'}>
+                          {user.planType}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openDialog(user)}
+                          data-testid={`button-manage-${user.id}`}
+                        >
+                          Manage
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -396,12 +273,11 @@ export default function Admin() {
           </Card>
         </TabsContent>
 
-        {/* Subscriptions Table */}
         <TabsContent value="subscriptions" className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle>Subscription Management</CardTitle>
-              <CardDescription>All subscriptions synced from Airtable</CardDescription>
+              <CardDescription>All active subscriptions</CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
@@ -417,19 +293,29 @@ export default function Admin() {
                 </TableHeader>
                 <TableBody>
                   {subscriptions.map((sub) => (
-                    <TableRow key={sub.id} data-testid={`subscription-row-${sub.fields['User ID']}`}>
-                      <TableCell className="font-mono text-xs">{sub.fields['User ID']}</TableCell>
+                    <TableRow key={sub.id}>
+                      <TableCell className="font-mono text-sm">{sub.userId.substring(0, 8)}...</TableCell>
                       <TableCell>
-                        <Badge variant="secondary">{sub.fields['Plan Type']}</Badge>
+                        <Badge>{sub.planType}</Badge>
                       </TableCell>
-                      <TableCell>{getStatusBadge(sub.fields['Status'])}</TableCell>
-                      <TableCell>{formatDate(sub.fields['Started At'])}</TableCell>
-                      <TableCell>{formatDate(sub.fields['Expires At'])}</TableCell>
                       <TableCell>
-                        {sub.fields['Auto Renew'] ? (
-                          <CheckCircle className="w-4 h-4 text-green-600" />
+                        {sub.status === 'active' ? (
+                          <CheckCircle className="h-4 w-4 text-green-500" />
+                        ) : sub.status === 'cancelled' ? (
+                          <XCircle className="h-4 w-4 text-red-500" />
                         ) : (
-                          <XCircle className="w-4 h-4 text-red-600" />
+                          <Clock className="h-4 w-4 text-yellow-500" />
+                        )}
+                      </TableCell>
+                      <TableCell>{new Date(sub.startedAt).toLocaleDateString()}</TableCell>
+                      <TableCell>
+                        {sub.expiresAt ? new Date(sub.expiresAt).toLocaleDateString() : 'Never'}
+                      </TableCell>
+                      <TableCell>
+                        {sub.autoRenew ? (
+                          <CheckCircle className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <XCircle className="h-4 w-4 text-gray-400" />
                         )}
                       </TableCell>
                     </TableRow>
@@ -440,6 +326,89 @@ export default function Admin() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Update Subscription</DialogTitle>
+            <DialogDescription>
+              Manage subscription for {selectedUser?.email}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="plan">Plan Type</Label>
+              <Select value={planType} onValueChange={setPlanType}>
+                <SelectTrigger id="plan" data-testid="select-plan-type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="free">Free</SelectItem>
+                  <SelectItem value="pro">Pro</SelectItem>
+                  <SelectItem value="premium">Premium</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="status">Status</Label>
+              <Select value={status} onValueChange={setStatus}>
+                <SelectTrigger id="status" data-testid="select-status">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                  <SelectItem value="expired">Expired</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="expires">Expires At (optional)</Label>
+              <Input
+                id="expires"
+                type="date"
+                value={expiresAt}
+                onChange={(e) => setExpiresAt(e.target.value)}
+                data-testid="input-expires-at"
+              />
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="autoRenew"
+                checked={autoRenew}
+                onChange={(e) => setAutoRenew(e.target.checked)}
+                data-testid="checkbox-auto-renew"
+                className="rounded"
+              />
+              <Label htmlFor="autoRenew">Auto Renew</Label>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDialogOpen(false)}
+              data-testid="button-cancel"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleUpdateSubscription}
+              disabled={updateSubscriptionMutation.isPending}
+              data-testid="button-update-subscription"
+            >
+              {updateSubscriptionMutation.isPending ? 'Updating...' : 'Update Subscription'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

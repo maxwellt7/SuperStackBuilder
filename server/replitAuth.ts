@@ -7,7 +7,6 @@ import type { Express, RequestHandler } from "express";
 import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
-import { syncUserToAirtable } from "./airtable";
 
 if (!process.env.REPLIT_DOMAINS) {
   throw new Error("Environment variable REPLIT_DOMAINS not provided");
@@ -67,15 +66,6 @@ async function upsertUser(
   };
   
   await storage.upsertUser(userData);
-  
-  // Sync to Airtable (non-blocking)
-  syncUserToAirtable(
-    userData.id,
-    userData.email,
-    userData.firstName,
-    userData.lastName,
-    userData.profileImageUrl
-  ).catch(err => console.error('Airtable sync error:', err));
 }
 
 export async function setupAuth(app: Express) {

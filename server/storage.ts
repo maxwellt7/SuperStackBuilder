@@ -2,12 +2,15 @@ import {
   users,
   stackSessions,
   stackMessages,
+  subscriptions,
   type User,
   type UpsertUser,
   type StackSession,
   type InsertStackSession,
   type StackMessage,
   type InsertStackMessage,
+  type Subscription,
+  type InsertSubscription,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and } from "drizzle-orm";
@@ -35,6 +38,14 @@ export interface IStorage {
     completedStacks: number;
     inProgressStacks: number;
   }>;
+
+  // Subscription operations
+  createSubscription(subscription: InsertSubscription): Promise<Subscription>;
+  getSubscription(id: string): Promise<Subscription | undefined>;
+  getUserSubscription(userId: string): Promise<Subscription | undefined>;
+  getAllUsers(): Promise<User[]>;
+  getAllSubscriptions(): Promise<Subscription[]>;
+  updateSubscription(id: string, updates: Partial<Subscription>): Promise<Subscription>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -154,6 +165,58 @@ export class DatabaseStorage implements IStorage {
       completedStacks,
       inProgressStacks,
     };
+  }
+
+  // Subscription operations
+  async createSubscription(subscription: InsertSubscription): Promise<Subscription> {
+    const [newSubscription] = await db
+      .insert(subscriptions)
+      .values(subscription)
+      .returning();
+    return newSubscription;
+  }
+
+  async getSubscription(id: string): Promise<Subscription | undefined> {
+    const [subscription] = await db
+      .select()
+      .from(subscriptions)
+      .where(eq(subscriptions.id, id));
+    return subscription;
+  }
+
+  async getUserSubscription(userId: string): Promise<Subscription | undefined> {
+    const [subscription] = await db
+      .select()
+      .from(subscriptions)
+      .where(and(
+        eq(subscriptions.userId, userId),
+        eq(subscriptions.status, "active")
+      ))
+      .orderBy(desc(subscriptions.startedAt))
+      .limit(1);
+    return subscription;
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    const allUsers = await db.select().from(users).orderBy(desc(users.createdAt));
+    return allUsers;
+  }
+
+  async getAllSubscriptions(): Promise<Subscription[]> {
+    const allSubscriptions = await db.select().from(subscriptions).orderBy(desc(subscriptions.createdAt));
+    return allSubscriptions;
+  }
+
+  async updateSubscription(id: string, updates: Partial<Subscription>): Promise<Subscription> {
+    const [updated] = await db
+      .update(subscriptions)
+      .set({
+        ...updates,
+        updatedAt: new Date(),
+      })
+      .where(eq(subscriptions.id, id))
+      .returning();
+    return updated;
   }
 }
 

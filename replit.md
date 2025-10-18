@@ -35,7 +35,7 @@ Preferred communication style: Simple, everyday language.
 - Insights (cognitive patterns and belief analysis)
 - Analytics (advanced metrics dashboard with emotional regulation, self-awareness, resilience, and growth tracking)
 - Recommendations (personalized transformation opportunities)
-- Admin (Airtable user management and subscription control)
+- Admin (user management and subscription control)
 - Settings (user profile and preferences)
 
 ### Backend Architecture
@@ -48,7 +48,7 @@ Preferred communication style: Simple, everyday language.
 - `/api/stacks/:sessionId/message` - Chat message handling
 - `/api/insights/*` - Cognitive insights and pattern analysis
 - `/api/analytics/advanced` - Advanced analytics metrics
-- `/api/admin/airtable/*` - Airtable data access for admin interface
+- `/api/admin/*` - Admin user and subscription management
 
 **AI Integration**: Anthropic Claude API (claude-sonnet-4-20250514)
 - Custom system prompts for each Stack type (gratitude, idea, discover, angry)
@@ -135,13 +135,6 @@ Preferred communication style: Simple, everyday language.
 - Runtime error overlay for development
 - TSX for TypeScript execution in development
 
-**Airtable Integration**:
-- Airtable SDK for data synchronization
-  - Base structure: Users table and Subscriptions table
-  - Bidirectional sync: Auth events sync to Airtable, admin changes update app
-  - Non-blocking operations to prevent sync failures from breaking app
-  - Admin dashboard for user management and subscription control
-
 **Vector Search**:
 - MongoDB Atlas Vector Search for semantic search
   - Cohere embeddings (1024-dimensional vectors using embed-english-v3.0)
@@ -153,25 +146,27 @@ Preferred communication style: Simple, everyday language.
   - Vector index: `vector_index` (1024 dimensions, dotProduct similarity)
 
 **Key Environment Variables**:
-- `DATABASE_URL` - Neon PostgreSQL connection string
-- `MONGODB_ATLAS_URI` - MongoDB Atlas connection string for vector search
+- `DATABASE_URL` - Neon PostgreSQL connection string (operational data, sessions, users, subscriptions)
+- `MONGODB_ATLAS_URI` - MongoDB Atlas connection string (vector embeddings only)
 - `ANTHROPIC_API_KEY` - Claude AI API key
 - `COHERE_API_KEY` - Cohere embeddings API key
-- `AIRTABLE_API_KEY` - Airtable personal access token
-- `AIRTABLE_BASE_ID` - Airtable base identifier
 - `REPL_ID` - Replit application identifier
 - `ISSUER_URL` - OIDC issuer endpoint
 - `SESSION_SECRET` - Express session encryption key
 
 ## Recent Changes (October 2025)
 
-### MongoDB Atlas Vector Search Migration (October 18, 2025)
+### Infrastructure Consolidation (October 18, 2025)
 - **Migrated from Pinecone to MongoDB Atlas**: Replaced Pinecone vector database with MongoDB Atlas Vector Search
-- **Unified Database**: Embeddings now stored alongside operational data in MongoDB (no separate vector DB)
-- **Native Vector Search**: Uses MongoDB's `$vectorSearch` aggregation pipeline for semantic search
-- **Cohere Embeddings**: Continued use of embed-english-v3.0 (1024-dimensional vectors)
-- **Setup Required**: Vector search index must be created in Atlas UI (see MONGODB_VECTOR_SETUP.md)
-- **Benefits**: Simplified infrastructure, no sync issues, free tier support, unified data management
+  - **Unified Vector Storage**: Embeddings stored in MongoDB (database: `mindgrowth`, collection: `message_embeddings`)
+  - **Native Vector Search**: Uses MongoDB's `$vectorSearch` aggregation pipeline for semantic search
+  - **Cohere Embeddings**: Continued use of embed-english-v3.0 (1024-dimensional vectors)
+  - **Setup Required**: Vector search index must be created in Atlas UI (see MONGODB_VECTOR_SETUP.md)
+- **Migrated from Airtable to PostgreSQL**: Replaced Airtable admin integration with PostgreSQL
+  - **Subscriptions Table**: Added `subscriptions` table to Neon PostgreSQL for subscription management
+  - **Unified Operational Data**: All structured data (users, sessions, messages, subscriptions) now in PostgreSQL
+  - **Admin Dashboard**: Updated to use PostgreSQL queries instead of Airtable API
+  - **Benefits**: Simplified infrastructure, no external sync, single source of truth, better data integrity
 
 ### Conversation Flow Optimization (October 16, 2025)
 - **Streamlined Chat Experience**: AI responses during Stack conversations are now concise (1 sentence acknowledgment + next question)
@@ -183,29 +178,6 @@ Preferred communication style: Simple, everyday language.
   - Actionable takeaways and commitments
   - Empowering recognition of growth
 - **User Experience**: Cleaner flow allows users to move through structured questions without verbose interruptions, with all therapeutic insight delivered in final summary
-
-### Airtable Integration (Task 8) - COMPLETED
-- **Bidirectional Sync**: Application ↔ Airtable data synchronization
-- **Module Structure**: `server/airtable.ts` centralizes all Airtable operations
-- **User Sync**: Automatic user creation/update in Airtable on authentication
-  - Non-blocking catch pattern prevents auth failures from Airtable issues
-- **Activity Tracking**: Stack counts and completion stats update in Airtable
-  - Uses `setImmediate()` for truly non-blocking session completion
-  - Zero latency impact on user experience
-- **Admin Interface**: `/admin` route with user and subscription management
-  - Configuration detection with explicit `configured` flags in API responses
-  - Yellow alert notice when Airtable credentials not configured
-  - Differentiates "not configured" from "empty base" scenarios
-- **Subscription Management**: Create, update, and view subscription status
-  - Error propagation ensures accurate success/failure feedback
-  - Returns 503 when Airtable not configured (truthful operator feedback)
-- **Data Schema**: Two Airtable tables
-  - Users: Profile info + Total Stacks + Completed Stacks + Last Active
-  - Subscriptions: User ID + Plan Type + Status + Dates + Auto Renew
-- **Graceful Degradation**: App functions perfectly without Airtable credentials
-  - GET endpoints return `{ configured: false, data: [] }` when disabled
-  - POST mutations provide clear error messages about missing configuration
-  - UI shows actionable guidance to configure Airtable
 
 ### Advanced Analytics Dashboard (Task 7)
 - Comprehensive analytics engine in `server/analytics.ts`

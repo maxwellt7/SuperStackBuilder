@@ -7,6 +7,7 @@ import {
   timestamp,
   varchar,
   integer,
+  boolean,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -74,9 +75,33 @@ export const stackMessages = pgTable("stack_messages", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Subscription plan types
+export const planTypeEnum = ["free", "pro", "premium"] as const;
+export type PlanType = typeof planTypeEnum[number];
+
+// Subscription status
+export const subscriptionStatusEnum = ["active", "cancelled", "expired"] as const;
+export type SubscriptionStatus = typeof subscriptionStatusEnum[number];
+
+// Subscriptions table
+export const subscriptions = pgTable("subscriptions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  planType: varchar("plan_type", { length: 20 }).notNull().default("free"),
+  status: varchar("status", { length: 20 }).notNull().default("active"),
+  startedAt: timestamp("started_at").defaultNow(),
+  expiresAt: timestamp("expires_at"),
+  autoRenew: boolean("auto_renew").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   stackSessions: many(stackSessions),
+  subscriptions: many(subscriptions),
 }));
 
 export const stackSessionsRelations = relations(stackSessions, ({ one, many }) => ({
@@ -94,6 +119,13 @@ export const stackMessagesRelations = relations(stackMessages, ({ one }) => ({
   }),
 }));
 
+export const subscriptionsRelations = relations(subscriptions, ({ one }) => ({
+  user: one(users, {
+    fields: [subscriptions.userId],
+    references: [users.id],
+  }),
+}));
+
 // Zod schemas for validation
 export const insertStackSessionSchema = createInsertSchema(stackSessions).omit({
   id: true,
@@ -106,6 +138,12 @@ export const insertStackMessageSchema = createInsertSchema(stackMessages).omit({
   createdAt: true,
 });
 
+export const insertSubscriptionSchema = createInsertSchema(subscriptions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Types
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
@@ -113,6 +151,8 @@ export type StackSession = typeof stackSessions.$inferSelect;
 export type InsertStackSession = z.infer<typeof insertStackSessionSchema>;
 export type StackMessage = typeof stackMessages.$inferSelect;
 export type InsertStackMessage = z.infer<typeof insertStackMessageSchema>;
+export type Subscription = typeof subscriptions.$inferSelect;
+export type InsertSubscription = z.infer<typeof insertSubscriptionSchema>;
 
 // Stack question flows - structured questions from superstack.pdf
 export interface StackQuestions {
