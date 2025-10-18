@@ -1,5 +1,5 @@
 import { storage } from './storage';
-import { semanticSearch } from './pinecone';
+import { semanticSearch } from './mongodb-vector';
 import { generateCognitiveInsights } from './insights';
 import type { StackType } from '@shared/schema';
 

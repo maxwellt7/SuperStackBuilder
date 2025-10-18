@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { semanticSearch } from './pinecone';
+import { semanticSearch } from './mongodb-vector';
 import type { StackType } from '@shared/schema';
 
 const anthropic = new Anthropic({

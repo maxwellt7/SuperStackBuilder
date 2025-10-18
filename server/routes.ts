@@ -5,7 +5,7 @@ import { setupAuth, isAuthenticated } from "./replitAuth";
 import { getAIResponse, getInitialQuestion } from "./ai";
 import { insertStackSessionSchema, insertStackMessageSchema, stackQuestionFlows, type StackType } from "@shared/schema";
 import { z } from "zod";
-import { upsertMessageEmbedding, semanticSearch, findSimilarMessages, analyzePatterns } from "./pinecone";
+import { upsertMessageEmbedding, semanticSearch, findSimilarMessages, analyzePatterns } from "./mongodb-vector";
 import { generatePersonalizedRecommendations } from "./insights";
 import { generateAdvancedAnalytics } from "./analytics";
 import { 
