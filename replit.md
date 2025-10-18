@@ -143,17 +143,20 @@ Preferred communication style: Simple, everyday language.
   - Admin dashboard for user management and subscription control
 
 **Vector Search**:
-- Pinecone vector database for semantic search
+- MongoDB Atlas Vector Search for semantic search
   - Cohere embeddings (1024-dimensional vectors using embed-english-v3.0)
+  - Native vector search using $vectorSearch aggregation pipeline
   - Metadata filtering by Stack type, CORE 4 domain, user
   - Pattern analysis and similar message discovery
   - Insights engine for cognitive pattern recognition
+  - Database: `mindgrowth`, Collection: `message_embeddings`
+  - Vector index: `vector_index` (1024 dimensions, dotProduct similarity)
 
 **Key Environment Variables**:
 - `DATABASE_URL` - Neon PostgreSQL connection string
+- `MONGODB_ATLAS_URI` - MongoDB Atlas connection string for vector search
 - `ANTHROPIC_API_KEY` - Claude AI API key
 - `COHERE_API_KEY` - Cohere embeddings API key
-- `PINECONE_API_KEY` - Pinecone vector database key
 - `AIRTABLE_API_KEY` - Airtable personal access token
 - `AIRTABLE_BASE_ID` - Airtable base identifier
 - `REPL_ID` - Replit application identifier
@@ -162,11 +165,13 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes (October 2025)
 
-### Cohere Embeddings Integration (October 18, 2025)
-- **Switched from OpenAI to Cohere**: Replaced OpenAI text-embedding-3-small with Cohere embed-english-v3.0
-- **Vector Dimensions**: Updated Pinecone index to use 1024-dimensional vectors (Cohere standard)
-- **Cost Optimization**: Cohere provides reliable embeddings at lower cost than OpenAI
-- **API Key Management**: All three external services (Pinecone, Cohere, Airtable) now configured via Replit Secrets
+### MongoDB Atlas Vector Search Migration (October 18, 2025)
+- **Migrated from Pinecone to MongoDB Atlas**: Replaced Pinecone vector database with MongoDB Atlas Vector Search
+- **Unified Database**: Embeddings now stored alongside operational data in MongoDB (no separate vector DB)
+- **Native Vector Search**: Uses MongoDB's `$vectorSearch` aggregation pipeline for semantic search
+- **Cohere Embeddings**: Continued use of embed-english-v3.0 (1024-dimensional vectors)
+- **Setup Required**: Vector search index must be created in Atlas UI (see MONGODB_VECTOR_SETUP.md)
+- **Benefits**: Simplified infrastructure, no sync issues, free tier support, unified data management
 
 ### Conversation Flow Optimization (October 16, 2025)
 - **Streamlined Chat Experience**: AI responses during Stack conversations are now concise (1 sentence acknowledgment + next question)
