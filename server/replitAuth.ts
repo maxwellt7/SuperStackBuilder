@@ -8,9 +8,8 @@ import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
 
-if (!process.env.REPLIT_DOMAINS) {
-  throw new Error("Environment variable REPLIT_DOMAINS not provided");
-}
+// REPLIT_DOMAINS is only available in development, not in deployments
+// In production, we'll register strategies dynamically based on req.hostname
 
 const getOidcConfig = memoize(
   async () => {
@@ -86,8 +85,12 @@ export async function setupAuth(app: Express) {
     verified(null, user);
   };
 
-  for (const domain of process.env
-    .REPLIT_DOMAINS!.split(",")) {
+  // Register strategies for known domains (development) or use dynamic registration (production)
+  const domains = process.env.REPLIT_DOMAINS 
+    ? process.env.REPLIT_DOMAINS.split(",") 
+    : [];
+  
+  for (const domain of domains) {
     const strategy = new Strategy(
       {
         name: `replitauth:${domain}`,
@@ -99,11 +102,38 @@ export async function setupAuth(app: Express) {
     );
     passport.use(strategy);
   }
+  
+  // Keep track of registered strategies (for production domains)
+  const registeredStrategies = new Set<string>(domains);
+  
+  // Helper to register strategy dynamically for production domains
+  const ensureStrategyExists = (hostname: string) => {
+    const strategyName = `replitauth:${hostname}`;
+    
+    // Check if strategy already registered
+    if (registeredStrategies.has(hostname)) {
+      return; // Already registered
+    }
+    
+    // Register new strategy for this hostname
+    const strategy = new Strategy(
+      {
+        name: strategyName,
+        config,
+        scope: "openid email profile offline_access",
+        callbackURL: `https://${hostname}/api/callback`,
+      },
+      verify,
+    );
+    passport.use(strategy);
+    registeredStrategies.add(hostname);
+  };
 
   passport.serializeUser((user: Express.User, cb) => cb(null, user));
   passport.deserializeUser((user: Express.User, cb) => cb(null, user));
 
   app.get("/api/login", (req, res, next) => {
+    ensureStrategyExists(req.hostname);
     passport.authenticate(`replitauth:${req.hostname}`, {
       prompt: "login consent",
       scope: ["openid", "email", "profile", "offline_access"],
@@ -111,6 +141,7 @@ export async function setupAuth(app: Express) {
   });
 
   app.get("/api/callback", (req, res, next) => {
+    ensureStrategyExists(req.hostname);
     passport.authenticate(`replitauth:${req.hostname}`, {
       successReturnToOrRedirect: "/",
       failureRedirect: "/api/login",
