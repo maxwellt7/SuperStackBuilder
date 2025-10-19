@@ -82,6 +82,8 @@ interface AdvancedAnalytics {
 export default function Analytics() {
   const { data: analytics, isLoading } = useQuery<AdvancedAnalytics>({
     queryKey: ['/api/analytics/advanced'],
+    staleTime: 60000, // Cache analytics for 1 minute (expensive AI computation)
+    select: (data) => data, // Enable structural sharing
   });
 
   const getTrendIcon = (trend: string) => {

@@ -37,11 +37,15 @@ export default function StackSessionPage() {
   const { data: session, isLoading: sessionLoading } = useQuery<StackSession>({
     queryKey: ["/api/stacks/session", sessionId],
     enabled: isAuthenticated && !!sessionId,
+    staleTime: 30000, // Consider session data fresh for 30 seconds
+    select: (data) => data, // Enable structural sharing
   });
 
   const { data: messages = [] } = useQuery<StackMessage[]>({
     queryKey: ["/api/stacks/messages", sessionId],
     enabled: isAuthenticated && !!sessionId,
+    staleTime: 10000, // Consider messages fresh for 10 seconds
+    select: (data) => data, // Enable structural sharing
   });
 
   const sendMessageMutation = useMutation({

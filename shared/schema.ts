@@ -73,7 +73,10 @@ export const stackMessages = pgTable("stack_messages", {
   content: text("content").notNull(),
   questionNumber: integer("question_number"), // Which question this relates to
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  // Composite index for efficient message queries by session
+  sessionCreatedIdx: index("idx_stack_messages_session_created").on(table.sessionId, table.createdAt),
+}));
 
 // Subscription plan types
 export const planTypeEnum = ["free", "pro", "premium"] as const;

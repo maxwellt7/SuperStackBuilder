@@ -71,6 +71,8 @@ interface CognitiveInsights {
 export default function Insights() {
   const { data: insights, isLoading } = useQuery<CognitiveInsights>({
     queryKey: ['/api/insights/cognitive'],
+    staleTime: 60000, // Cache insights for 1 minute (expensive AI computation)
+    select: (data) => data, // Enable structural sharing
   });
 
   if (isLoading) {
