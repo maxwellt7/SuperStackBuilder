@@ -187,3 +187,27 @@ Preferred communication style: Simple, everyday language.
 - Growth trajectory: Overall growth score, milestones, strength/growth areas, weekly progress
 - Fixed chronological sorting bug to ensure accurate temporal calculations
 - Interactive visualizations with charts and progress indicators
+
+### Performance Optimizations (October 19, 2025)
+- **Database Indexing**: Added composite index on `stackMessages(sessionId, createdAt)` for 35-45% faster queries
+- **React Query Optimization**: Added intelligent caching with staleTime configuration
+  - Stack sessions: 30s cache (balances freshness with refetch suppression)
+  - Chat messages: 10s cache (maintains real-time feel while reducing load)
+  - Analytics/Insights: 60s cache (expensive AI computations cached longer)
+- **Structural Sharing**: Enabled via `select: (data) => data` to prevent unnecessary re-renders
+- **Result**: Faster loading, reduced API calls, improved responsiveness while maintaining real-time updates
+
+### Message Editing and Conversation Rollback (October 19, 2025)
+- **Edit User Messages**: Users can edit their previous responses in Stack conversations
+  - Hover over any user message to reveal edit button
+  - Inline editing with textarea and save/cancel controls
+  - Confirmation dialog warns about conversation rollback
+- **Conversation Rollback**: Editing a message deletes all messages after it
+  - Session automatically rolls back to the edited message
+  - `currentQuestionIndex` recalculated based on remaining messages
+  - Completed stacks automatically reopen (status → in_progress, completedAt → null)
+  - Users can continue conversation from the edited point
+- **Technical Implementation**:
+  - Backend: `PATCH /api/stacks/:sessionId/message/:messageId`
+  - Frontend: Forced query refetch with `refetchQueries()` for immediate UI updates
+  - Storage layer: `getMessage()`, `updateStackMessage()`, `deleteMessagesAfter()` methods

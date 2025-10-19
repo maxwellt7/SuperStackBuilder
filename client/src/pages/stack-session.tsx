@@ -9,7 +9,17 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Heart, Lightbulb, Sparkles, Flame, Send, CheckCircle2, Loader2, Download } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Heart, Lightbulb, Sparkles, Flame, Send, CheckCircle2, Loader2, Download, Edit2, X, Check, RefreshCw } from "lucide-react";
 import type { StackSession, StackMessage } from "@shared/schema";
 
 export default function StackSessionPage() {
@@ -18,6 +28,10 @@ export default function StackSessionPage() {
   const { toast } = useToast();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [userInput, setUserInput] = useState("");
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState("");
+  const [showEditConfirm, setShowEditConfirm] = useState(false);
+  const [pendingEditMessage, setPendingEditMessage] = useState<{ id: string; content: string } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -97,6 +111,30 @@ export default function StackSessionPage() {
     },
   });
 
+  const editMessageMutation = useMutation({
+    mutationFn: async ({ messageId, content }: { messageId: string; content: string }) => {
+      return await apiRequest("PATCH", `/api/stacks/${sessionId}/message/${messageId}`, { content });
+    },
+    onSuccess: async () => {
+      // Force refetch of queries immediately
+      await queryClient.refetchQueries({ queryKey: ["/api/stacks/session", sessionId] });
+      await queryClient.refetchQueries({ queryKey: ["/api/stacks/messages", sessionId] });
+      setEditingMessageId(null);
+      setEditContent("");
+      toast({
+        title: "Message Edited",
+        description: "Your message has been updated and the conversation has been rolled back.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleExport = async () => {
     try {
       const response = await fetch(`/api/stacks/${sessionId}/export`, {
@@ -138,6 +176,40 @@ export default function StackSessionPage() {
     e.preventDefault();
     if (!userInput.trim() || sendMessageMutation.isPending) return;
     sendMessageMutation.mutate(userInput);
+  };
+
+  const startEditing = (message: StackMessage) => {
+    setEditingMessageId(message.id);
+    setEditContent(message.content);
+  };
+
+  const cancelEditing = () => {
+    setEditingMessageId(null);
+    setEditContent("");
+  };
+
+  const confirmEdit = (messageId: string) => {
+    if (!editContent.trim()) {
+      toast({
+        title: "Error",
+        description: "Message content cannot be empty",
+        variant: "destructive",
+      });
+      return;
+    }
+    setPendingEditMessage({ id: messageId, content: editContent.trim() });
+    setShowEditConfirm(true);
+  };
+
+  const executeEdit = () => {
+    if (pendingEditMessage) {
+      editMessageMutation.mutate({
+        messageId: pendingEditMessage.id,
+        content: pendingEditMessage.content,
+      });
+    }
+    setShowEditConfirm(false);
+    setPendingEditMessage(null);
   };
 
   const stackConfig = {
@@ -242,9 +314,53 @@ export default function StackSessionPage() {
                 )}
                 <p className="text-lg leading-relaxed whitespace-pre-wrap">{message.content}</p>
               </Card>
+            ) : editingMessageId === message.id ? (
+              <div className="max-w-lg space-y-2">
+                <Textarea
+                  value={editContent}
+                  onChange={(e) => setEditContent(e.target.value)}
+                  className="min-h-24"
+                  data-testid={`textarea-edit-${message.id}`}
+                />
+                <div className="flex gap-2 justify-end">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={cancelEditing}
+                    data-testid="button-cancel-edit"
+                  >
+                    <X className="h-4 w-4 mr-1" />
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => confirmEdit(message.id)}
+                    disabled={editMessageMutation.isPending}
+                    data-testid="button-save-edit"
+                  >
+                    {editMessageMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                    ) : (
+                      <Check className="h-4 w-4 mr-1" />
+                    )}
+                    Save
+                  </Button>
+                </div>
+              </div>
             ) : (
-              <div className="max-w-lg bg-primary text-primary-foreground rounded-2xl px-6 py-4">
-                <p className="leading-relaxed whitespace-pre-wrap">{message.content}</p>
+              <div className="max-w-lg group relative">
+                <div className="bg-primary text-primary-foreground rounded-2xl px-6 py-4">
+                  <p className="leading-relaxed whitespace-pre-wrap">{message.content}</p>
+                </div>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="absolute -left-10 top-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={() => startEditing(message)}
+                  data-testid={`button-edit-${message.id}`}
+                >
+                  <Edit2 className="h-4 w-4" />
+                </Button>
               </div>
             )}
           </div>
@@ -316,6 +432,9 @@ export default function StackSessionPage() {
             <p className="text-muted-foreground">
               You've completed this reflection journey. Your insights have been saved.
             </p>
+            <p className="text-sm text-muted-foreground">
+              Want to refine your responses? Hover over any message and click the edit icon to modify and continue from that point.
+            </p>
           </div>
           <div className="flex gap-3 justify-center">
             <Button variant="outline" onClick={() => navigate("/history")} data-testid="button-view-history">
@@ -327,6 +446,29 @@ export default function StackSessionPage() {
           </div>
         </div>
       )}
+
+      {/* Edit Confirmation Dialog */}
+      <AlertDialog open={showEditConfirm} onOpenChange={setShowEditConfirm}>
+        <AlertDialogContent data-testid="dialog-edit-confirm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Edit Message and Roll Back?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Editing this message will delete all messages that came after it. 
+              The conversation will roll back to this point, and you can continue from here with your edited response.
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-confirm">Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={executeEdit}
+              data-testid="button-confirm-edit"
+            >
+              Edit and Roll Back
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

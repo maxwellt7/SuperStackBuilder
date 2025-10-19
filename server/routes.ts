@@ -253,6 +253,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Edit message and roll back conversation
+  app.patch("/api/stacks/:sessionId/message/:messageId", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { sessionId, messageId } = req.params;
+      const { content } = req.body;
+
+      if (!content || typeof content !== 'string' || content.trim().length === 0) {
+        return res.status(400).json({ message: "Message content is required" });
+      }
+
+      // Get and verify session ownership
+      const session = await storage.getStackSession(sessionId);
+      if (!session) {
+        return res.status(404).json({ message: "Session not found" });
+      }
+      if (session.userId !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      // Get and verify message
+      const message = await storage.getMessage(messageId);
+      if (!message) {
+        return res.status(404).json({ message: "Message not found" });
+      }
+      if (message.sessionId !== sessionId) {
+        return res.status(400).json({ message: "Message does not belong to this session" });
+      }
+      if (message.role !== "user") {
+        return res.status(400).json({ message: "Can only edit user messages" });
+      }
+
+      // Perform all operations atomically
+      // Note: We're using sequential operations here. For true transactions,
+      // we'd need to implement a transaction wrapper in the storage layer.
+      // However, given the database operations are idempotent and ordered correctly,
+      // this provides reasonable consistency.
+      
+      // Update the message
+      await storage.updateStackMessage(messageId, content.trim());
+
+      // Delete all messages after this one (roll back conversation)
+      if (message.createdAt) {
+        await storage.deleteMessagesAfter(sessionId, message.createdAt);
+      }
+
+      // Get all remaining messages to calculate new question index
+      const remainingMessages = await storage.getSessionMessages(sessionId);
+      const assistantMessages = remainingMessages.filter(m => m.role === "assistant");
+      
+      // Calculate correct index: initial message doesn't count, so index = assistantMessages - 1
+      const newQuestionIndex = Math.max(0, assistantMessages.length - 1);
+
+      // Update session to reflect new state (clear completedAt if reopening)
+      await storage.updateStackSession(sessionId, {
+        currentQuestionIndex: newQuestionIndex,
+        status: "in_progress",
+        completedAt: null,
+      });
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error editing message:", error);
+      res.status(500).json({ message: "Failed to edit message" });
+    }
+  });
+
   // Get all user sessions
   app.get("/api/stacks/all", isAuthenticated, async (req: any, res) => {
     try {

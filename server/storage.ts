@@ -13,7 +13,7 @@ import {
   type InsertSubscription,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, gt } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (required for Replit Auth)
@@ -31,6 +31,9 @@ export interface IStorage {
   // Stack message operations
   createStackMessage(message: InsertStackMessage): Promise<StackMessage>;
   getSessionMessages(sessionId: string): Promise<StackMessage[]>;
+  getMessage(id: string): Promise<StackMessage | undefined>;
+  updateStackMessage(id: string, content: string): Promise<StackMessage>;
+  deleteMessagesAfter(sessionId: string, timestamp: Date): Promise<void>;
 
   // Stats
   getUserStackStats(userId: string): Promise<{
@@ -143,6 +146,34 @@ export class DatabaseStorage implements IStorage {
       .where(eq(stackMessages.sessionId, sessionId))
       .orderBy(stackMessages.createdAt);
     return messages;
+  }
+
+  async getMessage(id: string): Promise<StackMessage | undefined> {
+    const [message] = await db
+      .select()
+      .from(stackMessages)
+      .where(eq(stackMessages.id, id));
+    return message;
+  }
+
+  async updateStackMessage(id: string, content: string): Promise<StackMessage> {
+    const [updated] = await db
+      .update(stackMessages)
+      .set({ content })
+      .where(eq(stackMessages.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteMessagesAfter(sessionId: string, timestamp: Date): Promise<void> {
+    await db
+      .delete(stackMessages)
+      .where(
+        and(
+          eq(stackMessages.sessionId, sessionId),
+          gt(stackMessages.createdAt, timestamp)
+        )
+      );
   }
 
   // Stats
