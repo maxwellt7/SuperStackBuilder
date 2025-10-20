@@ -1,3 +1,4 @@
+import { SignInButton, SignUpButton } from "@clerk/clerk-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Brain, Lightbulb, Heart, Flame, ArrowRight, Sparkles, Target, TrendingUp } from "lucide-react";
@@ -69,9 +70,9 @@ export default function Landing() {
             </div>
             <div className="flex items-center space-x-2">
               <ThemeToggle />
-              <Button asChild data-testid="button-login">
-                <a href="/api/login">Get Started</a>
-              </Button>
+              <SignInButton mode="modal">
+                <Button data-testid="button-login">Get Started</Button>
+              </SignInButton>
             </div>
           </div>
         </div>
@@ -90,12 +91,12 @@ export default function Landing() {
               limiting beliefs through structured reflection frameworks backed by psychology.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
-              <Button size="lg" asChild data-testid="button-hero-start">
-                <a href="/api/login">
+              <SignUpButton mode="modal">
+                <Button size="lg" data-testid="button-hero-start">
                   Begin Your Journey
                   <ArrowRight className="ml-2 h-5 w-5" />
-                </a>
-              </Button>
+                </Button>
+              </SignUpButton>
             </div>
           </div>
         </div>
@@ -165,12 +166,12 @@ export default function Landing() {
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             Join others who are reshaping their thinking patterns and unlocking their potential
           </p>
-          <Button size="lg" asChild data-testid="button-cta-start">
-            <a href="/api/login">
+          <SignUpButton mode="modal">
+            <Button size="lg" data-testid="button-cta-start">
               Start Your First Stack
               <ArrowRight className="ml-2 h-5 w-5" />
-            </a>
-          </Button>
+            </Button>
+          </SignUpButton>
         </div>
       </section>
 
